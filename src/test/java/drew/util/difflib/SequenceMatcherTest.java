@@ -1,25 +1,27 @@
 package drew.util.difflib;
 
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.BeforeEach;
-import static org.junit.jupiter.api.Assertions.*;
 
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
 /**
  * JUnit 5 tests for SequenceMatcher, ported from Python difflib test_difflib.py.
- * 
+ * <p/>
  * This test suite covers the core functionality of the SequenceMatcher class including:
  * - Basic sequence matching and difference detection
  * - Junk filtering functionality  
- * - Autojunk heuristic for popular characters
+ * - AutoJunk heuristic for popular characters
  * - Various ratio calculations (ratio, quickRatio, realQuickRatio)
  * - Edge cases and bug regression tests
  * - Static utility methods like getCloseMatches
- * 
+ * <p/>
  * Comments and test structure preserved from the original Python test suite where appropriate.
  */
 public class SequenceMatcherTest {
@@ -27,7 +29,8 @@ public class SequenceMatcherTest {
     /**
      * Tests with ASCII characters - ported from TestWithAscii
      */
-    public static class TestWithAscii {
+    @Nested
+    class TestWithAscii {
         
         @Test
         public void testOneInsert() {
@@ -96,10 +99,10 @@ public class SequenceMatcherTest {
         }
 
         @Test
-        public void testBjunk() {
+        public void testBJunk() {
             // Test with no junk
             SequenceMatcher sm = new SequenceMatcher(ch -> ch == ' ', "a".repeat(40) + "b".repeat(40), "a".repeat(44) + "b".repeat(40), true);
-            assertTrue(sm.getBJunk().isEmpty());
+            Assertions.assertTrue(sm.getBJunk().isEmpty());
 
             // Test with junk characters
             sm = new SequenceMatcher(ch -> ch == ' ', "a".repeat(40) + "b".repeat(40), "a".repeat(44) + "b".repeat(40) + " ".repeat(20), true);
@@ -117,13 +120,14 @@ public class SequenceMatcherTest {
     }
 
     /**
-     * Tests for the autojunk parameter - ported from TestAutojunk
+     * Tests for the autoJunk parameter - ported from TestAutoJunk
      */
-    public static class TestAutojunk {
+    @Nested
+    public class TestAutoJunk {
         
         @Test
         public void testOneInsertHomogenousSequence() {
-            // By default autojunk=True and the heuristic kicks in for a sequence of length 200+
+            // By default, autoJunk = True and the heuristic kicks in for a sequence of length 200+
             String seq1 = "b".repeat(200);
             String seq2 = "a" + "b".repeat(200);
 
@@ -137,12 +141,13 @@ public class SequenceMatcherTest {
     }
 
     /**
-     * Tests for various bug fixes - ported from TestSFbugs
+     * Tests for various bug fixes - ported from TestSFBugs
      */
-    public static class TestSFbugs {
+    @Nested
+    class TestSFBugs {
         
         @Test
-        public void testRatioForNullSeqn() {
+        public void testRatioForNullSequence() {
             // Check clearing of SF bug 763023
             SequenceMatcher s = new SequenceMatcher(null, "", "", true);
             assertEquals(1.0, s.ratio());
@@ -165,7 +170,8 @@ public class SequenceMatcherTest {
     /**
      * Tests for find_longest_match functionality - ported from TestFindLongest
      */
-    public static class TestFindLongest {
+    @Nested
+    class TestFindLongest {
         
         private boolean longerMatchExists(String a, String b, int n) {
             // Check if there's a longer match than n
@@ -187,9 +193,9 @@ public class SequenceMatcherTest {
             assertEquals(0, match.a);
             assertEquals(0, match.b);
             assertEquals(6, match.size);
-            assertEquals(a.substring(match.a, match.a + match.size), 
+            assertEquals(a.substring(match.a, match.a + match.size),
                         b.substring(match.b, match.b + match.size));
-            assertFalse(longerMatchExists(a, b, match.size));
+            Assertions.assertFalse(longerMatchExists(a, b, match.size));
 
             match = sm.findLongestMatch(2, a.length(), 4, b.length());
             assertEquals(3, match.a);
@@ -197,7 +203,7 @@ public class SequenceMatcherTest {
             assertEquals(4, match.size);
             assertEquals(a.substring(match.a, match.a + match.size),
                         b.substring(match.b, match.b + match.size));
-            assertFalse(longerMatchExists(a.substring(2), b.substring(4), match.size));
+            Assertions.assertFalse(longerMatchExists(a.substring(2), b.substring(4), match.size));
 
             match = sm.findLongestMatch(0, a.length(), 1, 5);
             assertEquals(1, match.a);
@@ -205,7 +211,7 @@ public class SequenceMatcherTest {
             assertEquals(4, match.size);
             assertEquals(a.substring(match.a, match.a + match.size),
                         b.substring(match.b, match.b + match.size));
-            assertFalse(longerMatchExists(a, b.substring(1, 5), match.size));
+            Assertions.assertFalse(longerMatchExists(a, b.substring(1, 5), match.size));
         }
 
         @Test
@@ -219,7 +225,7 @@ public class SequenceMatcherTest {
             assertEquals(5, match.size);
             assertEquals(a.substring(match.a, match.a + match.size),
                         b.substring(match.b, match.b + match.size));
-            assertFalse(longerMatchExists(a, b, match.size));
+            Assertions.assertFalse(longerMatchExists(a, b, match.size));
         }
     }
 
@@ -232,22 +238,22 @@ public class SequenceMatcherTest {
         
         // Test basic functionality - exact match should be included
         List<String> matches = SequenceMatcher.getCloseMatches("apple", possibilities, 3, 0.6);
-        assertTrue(matches.contains("apple")); // exact match should be included
-        assertTrue(matches.size() >= 1); // should have at least the exact match
+        Assertions.assertTrue(matches.contains("apple")); // exact match should be included
+        Assertions.assertFalse(matches.isEmpty()); // should have at least the exact match
         
         // Test with lower cutoff to get more matches
         matches = SequenceMatcher.getCloseMatches("apple", possibilities, 6, 0.1);
-        assertTrue(matches.contains("apple")); // exact match should be included
-        assertTrue(matches.contains("pineapple")); // partial match should be included with lower cutoff
+        Assertions.assertTrue(matches.contains("apple")); // exact match should be included
+        Assertions.assertTrue(matches.contains("pineapple")); // partial match should be included with lower cutoff
         
         // Test with different word
         matches = SequenceMatcher.getCloseMatches("app", possibilities, 3, 0.1);
-        assertTrue(matches.contains("apple"));
+        Assertions.assertTrue(matches.contains("apple"));
         
         // Test with n=1
         matches = SequenceMatcher.getCloseMatches("apple", possibilities, 1, 0.6);
         assertEquals(1, matches.size());
-        assertTrue(matches.contains("apple"));
+        Assertions.assertTrue(matches.contains("apple"));
     }
 
     /**
@@ -258,18 +264,19 @@ public class SequenceMatcherTest {
         List<String> possibilities = Arrays.asList("apple", "peach");
         
         // Test n <= 0
-        assertThrows(IllegalArgumentException.class, () -> {
-            SequenceMatcher.getCloseMatches("apple", possibilities, 0, 0.6);
-        });
+        Assertions.assertThrows(IllegalArgumentException.class, () -> SequenceMatcher.getCloseMatches("apple", possibilities, 0, 0.6));
         
         // Test invalid cutoff
-        assertThrows(IllegalArgumentException.class, () -> {
-            SequenceMatcher.getCloseMatches("apple", possibilities, 3, -0.1);
-        });
-        
-        assertThrows(IllegalArgumentException.class, () -> {
-            SequenceMatcher.getCloseMatches("apple", possibilities, 3, 1.1);
-        });
+        Assertions.assertThrows(IllegalArgumentException.class, () -> SequenceMatcher.getCloseMatches("apple", possibilities, 3, -0.1));
+        Assertions.assertThrows(IllegalArgumentException.class, () -> SequenceMatcher.getCloseMatches("apple", possibilities, 3, 1.1));
+    }
+
+    @Test
+    public void testRatioCalculationsIdentical() {
+        // Test identical strings
+        SequenceMatcher sm = new SequenceMatcher(null, "hello", "hello", true);
+        assertEquals(1.0, sm.ratio(), 0.001);
+
     }
 
     /**
@@ -277,25 +284,20 @@ public class SequenceMatcherTest {
      */
     @Test
     public void testRatioCalculations() {
-        // Test identical strings - TODO: there appears to be a bug in the current implementation
-        // where identical strings don't return 1.0 ratio
-        // SequenceMatcher sm = new SequenceMatcher(null, "hello", "hello", true);
-        // assertEquals(1.0, sm.ratio(), 0.001);
-        
+        // Test that all ratio methods return values between 0 and 1
         SequenceMatcher sm = new SequenceMatcher(null, "abcd", "bcda", true);
         
-        // Test that all ratio methods return values between 0 and 1
         double ratio = sm.ratio();
         double quickRatio = sm.quickRatio();
         double realQuickRatio = sm.realQuickRatio();
         
-        assertTrue(ratio >= 0.0 && ratio <= 1.0);
-        assertTrue(quickRatio >= 0.0 && quickRatio <= 1.0);
-        assertTrue(realQuickRatio >= 0.0 && realQuickRatio <= 1.0);
+        Assertions.assertTrue(ratio >= 0.0 && ratio <= 1.0);
+        Assertions.assertTrue(quickRatio >= 0.0 && quickRatio <= 1.0);
+        Assertions.assertTrue(realQuickRatio >= 0.0 && realQuickRatio <= 1.0);
         
         // Quick ratios should be upper bounds on ratio
-        assertTrue(quickRatio >= ratio);
-        assertTrue(realQuickRatio >= ratio);
+        Assertions.assertTrue(quickRatio >= ratio);
+        Assertions.assertTrue(realQuickRatio >= ratio);
     }
 
     /**
@@ -307,7 +309,7 @@ public class SequenceMatcherTest {
         
         // Test setSeqs
         sm.setSeqs("hello", "world");
-        assertNotEquals(1.0, sm.ratio()); // Should not be identical
+        Assertions.assertNotEquals(1.0, sm.ratio()); // Should not be identical
         
         // Test setSeqA
         sm.setSeqA("world");
@@ -315,6 +317,6 @@ public class SequenceMatcherTest {
         
         // Test setSeqB  
         sm.setSeqB("hello");
-        assertNotEquals(1.0, sm.ratio()); // Should not be identical again
+        Assertions.assertNotEquals(1.0, sm.ratio()); // Should not be identical again
     }
 }

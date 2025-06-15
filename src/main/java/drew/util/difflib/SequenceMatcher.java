@@ -231,7 +231,7 @@ public class SequenceMatcher {
         int bestj = blo;
         int bestsize = 0;
 
-        // find longest junk-free match
+        // find the longest junk-free match
         // during an iteration of the loop, j2len[j] = length of longest
         // junk-free match ending with a[i-1] and b[j]
 
@@ -300,7 +300,7 @@ public class SequenceMatcher {
         // This is most naturally expressed as a recursive algorithm, but
         // at least one user bumped into extreme use cases that exceeded
         // the recursion limit on their box. So, now we maintain a list
-        // ('queue`) of blocks we still need to look at, and append partial
+        // ('queue') of blocks we still need to look at, and append partial
         // results to `matching_blocks` in a loop; the matches are sorted
         // at the end.
 
@@ -333,6 +333,11 @@ public class SequenceMatcher {
         // matching_blocks list now. Starting with 2.5, this code was added
         // to collapse them.
         matchingBlocks.sort(Comparator.comparingInt((Match m) -> m.a).thenComparingInt(m -> m.b));
+        this.matchingBlocks = getNonAdjacentMatches(matchingBlocks, la, lb);
+        return matchingBlocks;
+    }
+
+    private static List<Match> getNonAdjacentMatches(List<Match> matchingBlocks, int la, int lb) {
         List<Match> nonAdjacent = new ArrayList<>();
         int i1 = 0, j1 = 0, k1 = 0;
         for (Match match : matchingBlocks) {
@@ -354,8 +359,7 @@ public class SequenceMatcher {
             nonAdjacent.add(new Match(i1, j1, k1));
         }
         nonAdjacent.add(new Match(la, lb, 0));
-        this.matchingBlocks = nonAdjacent;
-        return matchingBlocks;
+        return nonAdjacent;
     }
 
     /**
