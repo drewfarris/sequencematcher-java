@@ -1,4 +1,4 @@
-package drew.util.difflib
+package drew.util.difflib;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -455,6 +455,15 @@ public class SequenceMatcher {
         int la = a.length();
         int lb = b.length();
         return calculateRatio(Math.min(la, lb), la + lb);
+    }
+
+    /**
+     * Get the set of junk characters in sequence b.
+     * 
+     * @return the set of characters in b that are considered junk
+     */
+    public Set<Character> getBJunk() {
+        return new HashSet<>(bJunk);
     }
 
     private double calculateRatio(int matches, int length) {
