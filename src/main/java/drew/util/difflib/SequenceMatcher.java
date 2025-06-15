@@ -98,6 +98,45 @@ public class SequenceMatcher {
     private final JunkFilter junkFilter;
 
     /**
+     * Construct a SequenceMatcher with no junk filter and autoJunk set to true, set the sequences to match with either
+     * {@link #setSequences} or {@link #setSequenceA(String)} and {@link #setSequenceB(String)}
+     */
+    public SequenceMatcher() {
+        this("", "");
+    }
+
+    /**
+     * Construct a SequenceMatcher with no junk filter and autoJunk set to true.
+     *
+     * @param a
+     *            the first of two sequences to be compared. By default, an empty string. The elements of a must be hashable. See also {@link #setSequences(String, String) and
+     *            {@link #setSequenceA(String)}
+     * @param b
+     *            the second of two sequences to be compared. By default, an empty string. The elements of b must be hashable. See also {@link #setSequences(String, String)} and
+     *            {@link #setSequenceB(String)}.
+     */
+    public SequenceMatcher(String a, String b) {
+        this(a, b, true);
+    }
+
+    /**
+     * Construct a SequenceMatcher with no junk filter.
+     *
+     * @param a
+     *            the first of two sequences to be compared. By default, an empty string. The elements of a must be hashable. See also {@link #setSequences(String, String) and
+     *            {@link #setSequenceA(String)}
+     * @param b
+     *            the second of two sequences to be compared. By default, an empty string. The elements of b must be hashable. See also {@link #setSequences(String, String)} and
+     *            {@link #setSequenceB(String)}.
+     * @param autoJunk
+     *            set false to disable the "automatic junk heuristic" that treats popular elements as junk
+     *
+     */
+    public SequenceMatcher(String a, String b, boolean autoJunk) {
+        this(null, a, b, autoJunk);
+    }
+
+    /**
      * Construct a SequenceMatcher.
      *
      * @param junkFilter
