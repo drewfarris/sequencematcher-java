@@ -4,12 +4,10 @@
   <modelVersion>4.0.0</modelVersion>
 
   <groupId>drew.util</groupId>
-  <artifactId>difflib-java</artifactId>
+  <artifactId>sequencematcher-java</artifactId>
   <version>1.0-SNAPSHOT</version>
 
-  <name>difflib-java</name>
-  <!-- FIXME change it to the project's website -->
-  <url>http://www.example.com</url>
+  <name>sequencematcher-java</name>
 
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
