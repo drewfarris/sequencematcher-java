@@ -235,7 +235,6 @@ public class SequenceMatcher {
         // during an iteration of the loop, j2len[j] = length of longest
         // junk-free match ending with a[i-1] and b[j]
 
-        // TODO: what to do about j2len?
         Map<Integer,Integer> j2len = new HashMap<>();
         List<Integer> nothing = new ArrayList<>();
 
@@ -246,7 +245,7 @@ public class SequenceMatcher {
                     continue;
                 if (j >= bhi)
                     break;
-                int k = newj2len.getOrDefault(j - 1, 0) + 1;
+                int k = j2len.getOrDefault(j - 1, 0) + 1;
                 newj2len.put(j, k);
                 if (k > bestsize) {
                     besti = i - k + 1;
@@ -471,6 +470,9 @@ public class SequenceMatcher {
     }
 
     private double calculateRatio(int matches, int length) {
+        if (length == 0) {
+            return 1.0;
+        }
         return 2.0 * matches / length;
     }
 

@@ -273,10 +273,21 @@ public class SequenceMatcherTest {
 
     @Test
     public void testRatioCalculationsIdentical() {
-        // Test identical strings
+        // Test identical strings should have ratio of 1.0
         SequenceMatcher sm = new SequenceMatcher(null, "hello", "hello", true);
         assertEquals(1.0, sm.ratio(), 0.001);
-
+        
+        // Test with different identical strings
+        sm = new SequenceMatcher(null, "abc", "abc", true);
+        assertEquals(1.0, sm.ratio(), 0.001);
+        
+        // Test with empty strings
+        sm = new SequenceMatcher(null, "", "", true);
+        assertEquals(1.0, sm.ratio(), 0.001);
+        
+        // Test with single character
+        sm = new SequenceMatcher(null, "a", "a", true);
+        assertEquals(1.0, sm.ratio(), 0.001);
     }
 
     /**
