@@ -1,6 +1,7 @@
 package drew.util.difflib;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -22,7 +23,7 @@ import java.util.Set;
  * sequences, but does tend to yield matches that "look right" to people.
  * <p/>
  * SequenceMatcher tries to compute a "human-friendly diff" between two sequences. Unlike e.g. UNIX(tm) diff, the fundamental notion is the longest *contiguous*
- * & junk-free matching subsequence. That's what catches peoples' eyes. The Windows(tm) windiff has another interesting notion, pairing up elements that appear
+ * & junk-free matching subsequence. That's what catches peoples' eyes. The Windows(tm) WinDiff has another interesting notion, pairing up elements that appear
  * uniquely in each sequence. That, and the method here, appear to yield more intuitive difference reports than does diff. This method appears to be the least
  * vulnerable to syncing up on blocks of "junk lines", though (like blank lines in ordinary text files, or maybe "&lt;P&gt;lines in HTML files). That may be because this is the only method of the 3 that has a *concept* of "junk" &lt;wink&gt;.
  * <p/>
@@ -53,11 +54,22 @@ public class SequenceMatcher {
     /** the items in b for which {@link #junkFilter} is True. */
     private Set<Character> bJunk;
 
-    /** autojunk should be set to <code>false</code> to disable the "automatic junk heuristic" that treats popular elements as junk. */
+    /** autoJunk should be set to <code>false</code> to disable the "automatic junk heuristic" that treats popular elements as junk. */
     private final boolean autoJunk;
 
     /** a list of <code>(i, j, k)</code> triples, where <code>a[i:i+k] == b[j:j+k]</code>; ascending & non-overlapping in i and in j; terminated by a dummy <code>(len(a), len(b), 0)</code> sentinel */
     private List<Match> matchingBlocks;
+    
+    /** Reusable maps for {@link #findLongestMatch(int, int, int, int)} to avoid object creation */
+    private final Map<Integer,Integer> j2lenMap1 = new HashMap<>();
+    private final Map<Integer,Integer> j2lenMap2 = new HashMap<>();
+    
+    /** Constant empty list to avoid repeated allocation */
+    private static final List<Integer> EMPTY_INT_LIST = Collections.emptyList();
+    
+    /** Reusable queue for {@link #getMatchingBlocks()} to reduce int[] allocation */
+    private final List<int[]> reusableQueue = new ArrayList<>();
+    private final List<int[]> availableArrays = new ArrayList<>();
 
     /**
      * a list of (tag, i1, i2, j1, j2) tuples, where tag is: one of
@@ -75,13 +87,13 @@ public class SequenceMatcher {
     private List<Opcode> opcodes;
 
     /**
-     * <code>for x in b</code>, <code>fullbcount[x]</code> equals the number of times x appears in b; only materialized if really needed (used only for computing {@link #quickRatio()})
+     * <code>for x in b</code>, <code>fullBCount[x]</code> equals the number of times x appears in b; only materialized if really needed (used only for computing {@link #quickRatio()})
      */
     private Map<Character,Integer> fullBCount;
 
     /**
      * a user-supplied function taking a sequence element and returning true iff the element is "junk" -- this has subtle but helpful effects on the algorithm,
-     * which I'll get around to writing up someday <0.9 wink>. DON'T USE! Only {@link #chainB()} uses this. Use <code>bjunk.contains(...)</code>
+     * which I'll get around to writing up someday <0.9 wink>. DON'T USE! Only {@link #chainB()} uses this. Use <code>bJunk.contains(...)</code>
      */
     private final JunkFilter junkFilter;
 
@@ -92,29 +104,26 @@ public class SequenceMatcher {
      *            a one-argument function that takes a sequence element and returns true iff the element is junk. None is equivalent to passing "lambda x: 0",
      *            i.e. no elements are considered to be junk. For example, pass lambda x: x in " \\t" if you're comparing lines as sequences of characters, and
      *            don't want to sync up on blanks or hard tabs.
-     *
      * @param a
-     *            the first of two sequences to be compared. By default, an empty string. The elements of a must be hashable. See also .set_seqs() and
-     *            .set_seq1().
-     *
+     *            the first of two sequences to be compared. By default, an empty string. The elements of a must be hashable. See also {@link #setSequences(String, String) and
+     *            {@link #setSequenceA(String)}
      * @param b
-     *            the second of two sequences to be compared. By default, an empty string. The elements of b must be hashable. See also .set_seqs() and
-     *            .set_seq2().
-     *
+     *            the second of two sequences to be compared. By default, an empty string. The elements of b must be hashable. See also {@link #setSequences(String, String)} and
+     *            {@link #setSequenceB(String)}.
      * @param autoJunk
-     *            should be set to false to disable the "automatic junk heuristic" that treats popular elements as junk
+     *            set false to disable the "automatic junk heuristic" that treats popular elements as junk
      *
      */
     public SequenceMatcher(JunkFilter junkFilter, String a, String b, boolean autoJunk) {
         this.junkFilter = junkFilter;
         this.autoJunk = autoJunk;
-        setSeqs(a, b);
+        setSequences(a, b);
     }
 
     /** Set the two sequences to be compared */
-    public void setSeqs(String a, String b) {
-        setSeqA(a);
-        setSeqB(b);
+    public void setSequences(String a, String b) {
+        setSequenceA(a);
+        setSequenceB(b);
     }
 
     /**
@@ -123,13 +132,14 @@ public class SequenceMatcher {
      * The second sequence to be compared is not changed.
      */
 
-    public void setSeqA(String a) {
+    public void setSequenceA(String a) {
         if (a.equals(this.a)) {
             return;
         }
         this.a = a;
         this.matchingBlocks = null;
         this.opcodes = null;
+        this.fullBCount = null;
     }
 
     /**
@@ -137,7 +147,7 @@ public class SequenceMatcher {
      * <p/>
      * The first sequence to be compared is not changed.
      */
-    public void setSeqB(String b) {
+    public void setSequenceB(String b) {
         if (b.equals(this.b)) {
             return;
         }
@@ -145,6 +155,10 @@ public class SequenceMatcher {
         this.matchingBlocks = null;
         this.opcodes = null;
         this.fullBCount = null;
+        this.j2lenMap1.clear();
+        this.j2lenMap2.clear();
+        this.reusableQueue.clear();
+        this.availableArrays.clear();
         chainB();
     }
 
@@ -157,7 +171,7 @@ public class SequenceMatcher {
      * <code>b2j</code> also does not contain entries for "popular" elements, meaning elements that account for more than 1 + 1% of the total elements, and when the
      * sequence is reasonably large (>= 200 elements); this can be viewed as an adaptive notion of semi-junk, and yields an enormous speedup when, e.g.,
      * comparing program files with hundreds of instances of "return null;" ... note that this is only called when b changes; so for cross-product kinds of
-     * matches, it's best to call {@link #setSeqB(String)} once, then {@link #setSeqA(String)} repeatedly.
+     * matches, it's best to call {@link #setSequenceB(String)} once, then {@link #setSequenceA(String)} repeatedly.
      * <p/>
      * Because junkFilter is a user-defined function, and we test for junk a LOT, it's important to minimize the number of calls. The first trick is to
      * build b2j ignoring the possibility of junk. I.e., we don't call isJunk at all yet. Throwing out the junk later is much cheaper than building b2j
@@ -222,61 +236,67 @@ public class SequenceMatcher {
      * <p/>
      * CAUTION: stripping common prefix or suffix would be incorrect. E.g., ab acab Longest matching block is "ab", but if common prefix is stripped, it's
      * "a" (tied with "b"). UNIX(tm) diff does so strip, so ends up claiming that ab is changed to acab by inserting "ca" in the middle. That's minimal but
-     * unintuitive: "it's obvious" that someone inserted "ac" at the front. Windiff ends up at the same place as diff, but by pairing up the unique 'b's and
+     * unintuitive: "it's obvious" that someone inserted "ac" at the front. WinDiff ends up at the same place as diff, but by pairing up the unique 'b's and
      * then matching the first two 'a's.
      */
     public Match findLongestMatch(int alo, int ahi, int blo, int bhi) {
 
         int besti = alo;
         int bestj = blo;
-        int bestsize = 0;
+        int bestSize = 0;
 
         // find the longest junk-free match
         // during an iteration of the loop, j2len[j] = length of longest
         // junk-free match ending with a[i-1] and b[j]
 
-        Map<Integer,Integer> j2len = new HashMap<>();
-        List<Integer> nothing = new ArrayList<>();
+        // Use alternating maps to avoid object creation
+        Map<Integer,Integer> j2len = j2lenMap1;
+        Map<Integer,Integer> newj2len = j2lenMap2;
+        j2len.clear();
+        newj2len.clear();
 
         for (int i = alo; i < ahi; i++) {
-            Map<Integer,Integer> newj2len = new HashMap<>();
-            for (int j : b2j.getOrDefault(a.charAt(i), nothing)) {
+            newj2len.clear();
+            for (int j : b2j.getOrDefault(a.charAt(i), EMPTY_INT_LIST)) {
                 if (j < blo)
                     continue;
                 if (j >= bhi)
                     break;
                 int k = j2len.getOrDefault(j - 1, 0) + 1;
                 newj2len.put(j, k);
-                if (k > bestsize) {
+                if (k > bestSize) {
                     besti = i - k + 1;
                     bestj = j - k + 1;
-                    bestsize = k;
+                    bestSize = k;
                 }
             }
+            // Swap references instead of creating new objects
+            Map<Integer,Integer> temp = j2len;
             j2len = newj2len;
+            newj2len = temp;
         }
 
         while (besti > alo && bestj > blo && !bJunk.contains(b.charAt(bestj - 1)) && a.charAt(besti - 1) == b.charAt(bestj - 1)) {
             besti--;
             bestj--;
-            bestsize++;
+            bestSize++;
         }
-        while (besti + bestsize < ahi && bestj + bestsize < bhi && !bJunk.contains(b.charAt(bestj + bestsize))
-                        && a.charAt(besti + bestsize) == b.charAt(bestj + bestsize)) {
-            bestsize++;
+        while (besti + bestSize < ahi && bestj + bestSize < bhi && !bJunk.contains(b.charAt(bestj + bestSize))
+                        && a.charAt(besti + bestSize) == b.charAt(bestj + bestSize)) {
+            bestSize++;
         }
 
         while (besti > alo && bestj > blo && bJunk.contains(b.charAt(bestj - 1)) && a.charAt(besti - 1) == b.charAt(bestj - 1)) {
             besti--;
             bestj--;
-            bestsize++;
+            bestSize++;
         }
-        while (besti + bestsize < ahi && bestj + bestsize < bhi && bJunk.contains(b.charAt(bestj + bestsize))
-                        && a.charAt(besti + bestsize) == b.charAt(bestj + bestsize)) {
-            bestsize++;
+        while (besti + bestSize < ahi && bestj + bestSize < bhi && bJunk.contains(b.charAt(bestj + bestSize))
+                        && a.charAt(besti + bestSize) == b.charAt(bestj + bestSize)) {
+            bestSize++;
         }
 
-        return new Match(besti, bestj, bestsize);
+        return new Match(besti, bestj, bestSize);
     }
 
     /**
@@ -303,12 +323,13 @@ public class SequenceMatcher {
         // results to `matching_blocks` in a loop; the matches are sorted
         // at the end.
 
-        List<int[]> queue = new ArrayList<>();
-        queue.add(new int[] {0, la, 0, lb});
-        List<Match> matchingBlocks = new ArrayList<>();
+        // Reuse queue and arrays to minimize object allocation
+        reusableQueue.clear();
+        reusableQueue.add(getOrCreateArray(0, la, 0, lb));
+        final List<Match> matchingBlocks = new ArrayList<>();
 
-        while (!queue.isEmpty()) {
-            int[] x = queue.remove(queue.size() - 1);
+        while (!reusableQueue.isEmpty()) {
+            int[] x = reusableQueue.remove(reusableQueue.size() - 1);
             int alo = x[0];
             int ahi = x[1];
             int blo = x[2];
@@ -320,12 +341,14 @@ public class SequenceMatcher {
             if (k > 0) {
                 matchingBlocks.add(match);
                 if (alo < i && blo < j) {
-                    queue.add(new int[] {alo, i, blo, j});
+                    reusableQueue.add(getOrCreateArray(alo, i, blo, j));
                 }
                 if (i + k < ahi && j + k < bhi) {
-                    queue.add(new int[] {i + k, ahi, j + k, bhi});
+                    reusableQueue.add(getOrCreateArray(i + k, ahi, j + k, bhi));
                 }
             }
+            // Return array to pool for reuse
+            recycleArray(x);
         }
 
         // It's possible that we have adjacent equal blocks in the
@@ -333,11 +356,11 @@ public class SequenceMatcher {
         // to collapse them.
         matchingBlocks.sort(Comparator.comparingInt((Match m) -> m.a).thenComparingInt(m -> m.b));
         this.matchingBlocks = getNonAdjacentMatches(matchingBlocks, la, lb);
-        return matchingBlocks;
+        return this.matchingBlocks;
     }
 
     private static List<Match> getNonAdjacentMatches(List<Match> matchingBlocks, int la, int lb) {
-        List<Match> nonAdjacent = new ArrayList<>();
+        final List<Match> nonAdjacent = new ArrayList<>();
         int i1 = 0, j1 = 0, k1 = 0;
         for (Match match : matchingBlocks) {
             int i2 = match.a;
@@ -390,21 +413,21 @@ public class SequenceMatcher {
             int ai = match.a;
             int bj = match.b;
             int size = match.size;
-            String tag = "";
+            OpcodeTag tag = OpcodeTag.EMPTY;
             if (i < ai && j < bj) {
-                tag = "replace";
+                tag = OpcodeTag.REPLACE;
             } else if (i < ai) {
-                tag = "delete";
+                tag = OpcodeTag.DELETE;
             } else if (j < bj) {
-                tag = "insert";
+                tag = OpcodeTag.INSERT;
             }
-            if (!tag.isEmpty()) {
+            if (!tag.equals(OpcodeTag.EMPTY)) {
                 opcodes.add(new Opcode(tag, i, ai, j, bj));
             }
             i = ai + size;
             j = bj + size;
             if (size > 0) {
-                opcodes.add(new Opcode("equal", ai, i, bj, j));
+                opcodes.add(new Opcode(OpcodeTag.EQUAL, ai, i, bj, j));
             }
         }
         this.opcodes = opcodes;
@@ -433,13 +456,17 @@ public class SequenceMatcher {
     public double quickRatio() {
         if (fullBCount == null) {
             fullBCount = new HashMap<>();
-            for (char elt : b.toCharArray()) {
+            // Use charAt() instead of toCharArray() to avoid array creation
+            for (int i = 0; i < b.length(); i++) {
+                char elt = b.charAt(i);
                 fullBCount.put(elt, fullBCount.getOrDefault(elt, 0) + 1);
             }
         }
         Map<Character,Integer> avail = new HashMap<>();
         int matches = 0;
-        for (char elt : a.toCharArray()) {
+        // Use charAt() instead of toCharArray() to avoid array creation
+        for (int i = 0; i < a.length(); i++) {
+            char elt = a.charAt(i);
             int numb = avail.getOrDefault(elt, fullBCount.getOrDefault(elt, 0));
             avail.put(elt, numb - 1);
             if (numb > 0) {
@@ -475,6 +502,32 @@ public class SequenceMatcher {
         }
         return 2.0 * matches / length;
     }
+    
+    /**
+     * Get a reusable int array from the pool or create a new one.
+     */
+    private int[] getOrCreateArray(int a, int b, int c, int d) {
+        int[] array;
+        if (!availableArrays.isEmpty()) {
+            array = availableArrays.remove(availableArrays.size() - 1);
+        } else {
+            array = new int[4];
+        }
+        array[0] = a;
+        array[1] = b;
+        array[2] = c;
+        array[3] = d;
+        return array;
+    }
+    
+    /**
+     * Return an int array to the pool for reuse.
+     */
+    private void recycleArray(int[] array) {
+        if (availableArrays.size() < 10) { // Limit pool size to avoid memory leaks
+            availableArrays.add(array);
+        }
+    }
 
     /**
      * Use SequenceMatcher to return list of the best "good enough" matches.
@@ -501,7 +554,7 @@ public class SequenceMatcher {
         List<MatchResult> result = new ArrayList<>();
         SequenceMatcher s = new SequenceMatcher(null, "", word, true);
         for (String x : possibilities) {
-            s.setSeqA(x);
+            s.setSequenceA(x);
             if (s.realQuickRatio() >= cutoff && s.quickRatio() >= cutoff && s.ratio() >= cutoff) {
                 result.add(new MatchResult(s.ratio(), x));
             }
@@ -541,13 +594,13 @@ public class SequenceMatcher {
     }
 
     public static final class Opcode {
-        public final String tag;
+        public final OpcodeTag tag;
         public final int i1;
         public final int i2;
         public final int j1;
         public final int j2;
 
-        public Opcode(String tag, int i1, int i2, int j1, int j2) {
+        public Opcode(OpcodeTag tag, int i1, int i2, int j1, int j2) {
             this.tag = tag;
             this.i1 = i1;
             this.i2 = i2;
@@ -556,6 +609,9 @@ public class SequenceMatcher {
         }
     }
 
+    public enum OpcodeTag {
+        EMPTY, REPLACE, DELETE, INSERT, EQUAL
+    }
     public static class MatchResult {
         public final double score;
         public final String word;

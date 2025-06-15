@@ -40,12 +40,12 @@ public class SequenceMatcherTest {
             
             List<SequenceMatcher.Opcode> opcodes = sm.getOpcodes();
             assertEquals(2, opcodes.size());
-            assertEquals("insert", opcodes.get(0).tag);
+            assertEquals(SequenceMatcher.OpcodeTag.INSERT, opcodes.get(0).tag);
             assertEquals(0, opcodes.get(0).i1);
             assertEquals(0, opcodes.get(0).i2);
             assertEquals(0, opcodes.get(0).j1);
             assertEquals(1, opcodes.get(0).j2);
-            assertEquals("equal", opcodes.get(1).tag);
+            assertEquals(SequenceMatcher.OpcodeTag.EQUAL, opcodes.get(1).tag);
             assertEquals(0, opcodes.get(1).i1);
             assertEquals(100, opcodes.get(1).i2);
             assertEquals(1, opcodes.get(1).j1);
@@ -57,17 +57,17 @@ public class SequenceMatcherTest {
             
             opcodes = sm.getOpcodes();
             assertEquals(3, opcodes.size());
-            assertEquals("equal", opcodes.get(0).tag);
+            assertEquals(SequenceMatcher.OpcodeTag.EQUAL, opcodes.get(0).tag);
             assertEquals(0, opcodes.get(0).i1);
             assertEquals(50, opcodes.get(0).i2);
             assertEquals(0, opcodes.get(0).j1);
             assertEquals(50, opcodes.get(0).j2);
-            assertEquals("insert", opcodes.get(1).tag);
+            assertEquals(SequenceMatcher.OpcodeTag.INSERT, opcodes.get(1).tag);
             assertEquals(50, opcodes.get(1).i1);
             assertEquals(50, opcodes.get(1).i2);
             assertEquals(50, opcodes.get(1).j1);
             assertEquals(51, opcodes.get(1).j2);
-            assertEquals("equal", opcodes.get(2).tag);
+            assertEquals(SequenceMatcher.OpcodeTag.EQUAL, opcodes.get(2).tag);
             assertEquals(50, opcodes.get(2).i1);
             assertEquals(100, opcodes.get(2).i2);
             assertEquals(51, opcodes.get(2).j1);
@@ -81,17 +81,17 @@ public class SequenceMatcherTest {
             
             List<SequenceMatcher.Opcode> opcodes = sm.getOpcodes();
             assertEquals(3, opcodes.size());
-            assertEquals("equal", opcodes.get(0).tag);
+            assertEquals(SequenceMatcher.OpcodeTag.EQUAL, opcodes.get(0).tag);
             assertEquals(0, opcodes.get(0).i1);
             assertEquals(40, opcodes.get(0).i2);
             assertEquals(0, opcodes.get(0).j1);
             assertEquals(40, opcodes.get(0).j2);
-            assertEquals("delete", opcodes.get(1).tag);
+            assertEquals(SequenceMatcher.OpcodeTag.DELETE, opcodes.get(1).tag);
             assertEquals(40, opcodes.get(1).i1);
             assertEquals(41, opcodes.get(1).i2);
             assertEquals(40, opcodes.get(1).j1);
             assertEquals(40, opcodes.get(1).j2);
-            assertEquals("equal", opcodes.get(2).tag);
+            assertEquals(SequenceMatcher.OpcodeTag.EQUAL, opcodes.get(2).tag);
             assertEquals(41, opcodes.get(2).i1);
             assertEquals(81, opcodes.get(2).i2);
             assertEquals(40, opcodes.get(2).j1);
@@ -319,15 +319,15 @@ public class SequenceMatcherTest {
         SequenceMatcher sm = new SequenceMatcher(null, "abc", "def", true);
         
         // Test setSeqs
-        sm.setSeqs("hello", "world");
+        sm.setSequences("hello", "world");
         Assertions.assertNotEquals(1.0, sm.ratio()); // Should not be identical
         
         // Test setSeqA
-        sm.setSeqA("world");
+        sm.setSequenceA("world");
         assertEquals(1.0, sm.ratio()); // Should be identical now
         
         // Test setSeqB  
-        sm.setSeqB("hello");
+        sm.setSequenceB("hello");
         Assertions.assertNotEquals(1.0, sm.ratio()); // Should not be identical again
     }
 }
