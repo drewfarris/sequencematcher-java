@@ -1,4 +1,4 @@
-package drew.util.difflib;
+package drewfarris.util.difflib;
 
 import java.util.Random;
 
