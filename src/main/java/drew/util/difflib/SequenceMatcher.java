@@ -14,32 +14,41 @@ import java.util.Set;
  * Experimental port of Python difflib's
  * <a href="https://github.com/python/cpython/blob/e6c3039cb39e68ae9af9ddcaca341c5af8f9cf23/Lib/difflib.py#L44">SequenceMatcher</a> to Java. Where appropriate,
  * documentation and comments are copied from SequenceMatcher.
- * <p/>
+ * <p>
  * Documentation from SequenceMatcher:
- * <p/>
+ * </p>
+ * <p>
  * SequenceMatcher is a flexible class for comparing pairs of sequences of any type, so long as the sequence elements are hashable. The basic algorithm
  * predates, and is a little fancier than, an algorithm published in the late 1980's by Ratcliff and Obershelp under the hyperbolic name "gestalt pattern
  * matching". The basic idea is to find the longest contiguous matching subsequence that contains no "junk" elements (R-O doesn't address junk). The same idea
  * is then applied recursively to the pieces of the sequences to the left and to the right of the matching subsequence. This does not yield minimal edit
  * sequences, but does tend to yield matches that "look right" to people.
- * <p/>
+ * </p>
+ * <p>
  * SequenceMatcher tries to compute a "human-friendly diff" between two sequences. Unlike e.g. UNIX(tm) diff, the fundamental notion is the longest *contiguous*
- * & junk-free matching subsequence. That's what catches peoples' eyes. The Windows(tm) WinDiff has another interesting notion, pairing up elements that appear
- * uniquely in each sequence. That, and the method here, appear to yield more intuitive difference reports than does diff. This method appears to be the least
- * vulnerable to syncing up on blocks of "junk lines", though (like blank lines in ordinary text files, or maybe "&lt;P&gt;lines in HTML files). That may be because this is the only method of the 3 that has a *concept* of "junk" &lt;wink&gt;.
- * <p/>
- * {@link #ratio()} returns a float in <code>[0, 1]</code>, measuring the "similarity" of the sequences. As a rule of thumb, a {@link #ratio()} value over 0.6 means the sequences are close
- * matches.
- * <p/>
+ * &amp; junk-free matching subsequence. That's what catches peoples' eyes. The Windows(tm) WinDiff has another interesting notion, pairing up elements that
+ * appear uniquely in each sequence. That, and the method here, appear to yield more intuitive difference reports than does diff. This method appears to be the
+ * least vulnerable to syncing up on blocks of "junk lines", though (like blank lines in ordinary text files, or maybe "&lt;P&gt;lines in HTML files). That may
+ * be because this is the only method of the 3 that has a *concept* of "junk" &lt;wink&gt;.
+ * </p>
+ * <p>
+ * {@link #ratio()} returns a float in <code>[0, 1]</code>, measuring the "similarity" of the sequences. As a rule of thumb, a {@link #ratio()} value over 0.6
+ * means the sequences are close matches.
+ * </p>
+ * <p>
  * If you're only interested in where the sequences match, {@link #getMatchingBlocks()} is handy:
- * <p/>
- * Note that the last tuple returned by {@link #getMatchingBlocks()} is always a dummy, <code>(len(a), len(b), 0)</code>, and this is the only case in which the last tuple element
- * (number of elements matched) is 0.
- * <p/>
+ * </p>
+ * <p>
+ * Note that the last tuple returned by {@link #getMatchingBlocks()} is always a dummy, <code>(len(a), len(b), 0)</code>, and this is the only case in which the
+ * last tuple element (number of elements matched) is 0.
+ * </p>
+ * <p>
  * If you want to know how to change the first sequence into the second, use {@link #getOpcodes()}.
- * <p/>
+ * </p>
+ * <p>
  * Timing: Basic R-O is cubic time worst case and quadratic time expected case. SequenceMatcher is quadratic time for the worst case and has expected-case
  * behavior dependent in a complicated way on how many elements the sequences have in common; best case time is linear.
+ * </p>
  */
 public class SequenceMatcher {
 
@@ -58,16 +67,19 @@ public class SequenceMatcher {
     /** autoJunk should be set to <code>false</code> to disable the "automatic junk heuristic" that treats popular elements as junk. */
     private final boolean autoJunk;
 
-    /** a list of <code>(i, j, k)</code> triples, where <code>a[i:i+k] == b[j:j+k]</code>; ascending & non-overlapping in i and in j; terminated by a dummy <code>(len(a), len(b), 0)</code> sentinel */
+    /**
+     * a list of <code>(i, j, k)</code> triples, where <code>a[i:i+k] == b[j:j+k]</code>; ascending &amp; non-overlapping in i and in j; terminated by a dummy
+     * <code>(len(a), len(b), 0)</code> sentinel
+     */
     private List<Match> matchingBlocks;
-    
+
     /** Reusable maps for {@link #findLongestMatch(int, int, int, int)} to avoid object creation */
     private final Map<Integer,Integer> j2lenMap1 = new HashMap<>();
     private final Map<Integer,Integer> j2lenMap2 = new HashMap<>();
-    
+
     /** Constant empty list to avoid repeated allocation */
     private static final List<Integer> EMPTY_INT_LIST = Collections.emptyList();
-    
+
     /** Reusable queue for {@link #getMatchingBlocks()} to reduce int[] allocation */
     private final List<int[]> reusableQueue = new ArrayList<>();
     private final List<int[]> availableArrays = new ArrayList<>();
@@ -88,19 +100,20 @@ public class SequenceMatcher {
     private List<Opcode> opcodes;
 
     /**
-     * <code>for x in b</code>, <code>fullBCount[x]</code> equals the number of times x appears in b; only materialized if really needed (used only for computing {@link #quickRatio()})
+     * <code>for x in b</code>, <code>fullBCount[x]</code> equals the number of times x appears in b; only materialized if really needed (used only for
+     * computing {@link #quickRatio()})
      */
     private Map<Character,Integer> fullBCount;
 
     /**
-     * a user-supplied function taking a sequence element and returning true iff the element is "junk" -- this has subtle but helpful effects on the algorithm,
-     * which I'll get around to writing up someday <0.9 wink>. DON'T USE! Only {@link #chainB()} uses this. Use <code>bJunk.contains(...)</code>
+     * a user-supplied function taking a sequence element and returning true iff the element is "junk". Only {@link #chainB()} uses this. Use
+     * <code>bJunk.contains(...)</code>
      */
     private final JunkFilter junkFilter;
 
     /**
-     * Construct a SequenceMatcher with no junk filter and autoJunk set to true, set the sequences to match with either
-     * {@link #setSequences} or {@link #setSequenceA(String)} and {@link #setSequenceB(String)}
+     * Construct a SequenceMatcher with no junk filter and autoJunk set to true, set the sequences to match with either {@link #setSequences} or
+     * {@link #setSequenceA(String)} and {@link #setSequenceB(String)}
      */
     public SequenceMatcher() {
         this("", "");
@@ -110,11 +123,11 @@ public class SequenceMatcher {
      * Construct a SequenceMatcher with no junk filter and autoJunk set to true.
      *
      * @param a
-     *            the first of two sequences to be compared. By default, an empty string. The elements of a must be hashable. See also {@link #setSequences(String, String) and
-     *            {@link #setSequenceA(String)}
+     *            the first of two sequences to be compared. By default, an empty string. The elements of a must be hashable. See also
+     *            {@link #setSequences(String, String)} and {@link #setSequenceA(String)}
      * @param b
-     *            the second of two sequences to be compared. By default, an empty string. The elements of b must be hashable. See also {@link #setSequences(String, String)} and
-     *            {@link #setSequenceB(String)}.
+     *            the second of two sequences to be compared. By default, an empty string. The elements of b must be hashable. See also
+     *            {@link #setSequences(String, String)} and {@link #setSequenceB(String)}.
      */
     public SequenceMatcher(String a, String b) {
         this(a, b, true);
@@ -124,11 +137,11 @@ public class SequenceMatcher {
      * Construct a SequenceMatcher with no junk filter.
      *
      * @param a
-     *            the first of two sequences to be compared. By default, an empty string. The elements of a must be hashable. See also {@link #setSequences(String, String) and
-     *            {@link #setSequenceA(String)}
+     *            the first of two sequences to be compared. By default, an empty string. The elements of a must be hashable. See also
+     *            {@link #setSequences(String, String)} and {@link #setSequenceA(String)}
      * @param b
-     *            the second of two sequences to be compared. By default, an empty string. The elements of b must be hashable. See also {@link #setSequences(String, String)} and
-     *            {@link #setSequenceB(String)}.
+     *            the second of two sequences to be compared. By default, an empty string. The elements of b must be hashable. See also
+     *            {@link #setSequences(String, String)} and {@link #setSequenceB(String)}.
      * @param autoJunk
      *            set false to disable the "automatic junk heuristic" that treats popular elements as junk
      *
@@ -145,11 +158,11 @@ public class SequenceMatcher {
      *            i.e. no elements are considered to be junk. For example, pass lambda x: x in " \\t" if you're comparing lines as sequences of characters, and
      *            don't want to sync up on blanks or hard tabs.
      * @param a
-     *            the first of two sequences to be compared. By default, an empty string. The elements of a must be hashable. See also {@link #setSequences(String, String) and
-     *            {@link #setSequenceA(String)}
+     *            the first of two sequences to be compared. By default, an empty string. The elements of a must be hashable. See also
+     *            {@link #setSequences(String, String)} and {@link #setSequenceA(String)}
      * @param b
-     *            the second of two sequences to be compared. By default, an empty string. The elements of b must be hashable. See also {@link #setSequences(String, String)} and
-     *            {@link #setSequenceB(String)}.
+     *            the second of two sequences to be compared. By default, an empty string. The elements of b must be hashable. See also
+     *            {@link #setSequences(String, String)} and {@link #setSequenceB(String)}.
      * @param autoJunk
      *            set false to disable the "automatic junk heuristic" that treats popular elements as junk
      *
@@ -160,7 +173,14 @@ public class SequenceMatcher {
         setSequences(a, b);
     }
 
-    /** Set the two sequences to be compared */
+    /**
+     * Set the two sequences to be compared
+     *
+     * @param a
+     *            the first sequence to be compared
+     * @param b
+     *            the second sequence to be compared
+     */
     public void setSequences(String a, String b) {
         setSequenceA(a);
         setSequenceB(b);
@@ -168,8 +188,12 @@ public class SequenceMatcher {
 
     /**
      * Set the first sequence to be compared.
-     * <p/>
+     * <p>
      * The second sequence to be compared is not changed.
+     * </p>
+     *
+     * @param a
+     *            the first sequence to be compared
      */
 
     public void setSequenceA(String a) {
@@ -184,8 +208,12 @@ public class SequenceMatcher {
 
     /**
      * Set the second sequence to be compared.
-     * <p/>
+     * <p>
      * The first sequence to be compared is not changed.
+     * </p>
+     *
+     * @param b
+     *            the second sequence to be compared
      */
     public void setSequenceB(String b) {
         if (b.equals(this.b)) {
@@ -204,18 +232,21 @@ public class SequenceMatcher {
 
     /**
      * For each element <code>x in b</code>, set <code>b2j[x]</code> to a list of the indices in b where x appears; the indices are in increasing order;
-     * <p/>
-     * note that the number of times x appears in b is <code>b2j.get(x).size()</code> ... when isJunk is defined, junk elements don't show up in this map at all, which stops
-     * the central {@link #findLongestMatch(int, int, int, int)} method from starting any matching block at a junk element.
-     * <p/>
-     * <code>b2j</code> also does not contain entries for "popular" elements, meaning elements that account for more than 1 + 1% of the total elements, and when the
-     * sequence is reasonably large (>= 200 elements); this can be viewed as an adaptive notion of semi-junk, and yields an enormous speedup when, e.g.,
+     * <p>
+     * note that the number of times x appears in b is <code>b2j.get(x).size()</code> ... when isJunk is defined, junk elements don't show up in this map at
+     * all, which stops the central {@link #findLongestMatch(int, int, int, int)} method from starting any matching block at a junk element.
+     * </p>
+     * <p>
+     * <code>b2j</code> also does not contain entries for "popular" elements, meaning elements that account for more than 1 + 1% of the total elements, and when
+     * the sequence is reasonably large (&gt;= 200 elements); this can be viewed as an adaptive notion of semi-junk, and yields an enormous speedup when, e.g.,
      * comparing program files with hundreds of instances of "return null;" ... note that this is only called when b changes; so for cross-product kinds of
      * matches, it's best to call {@link #setSequenceB(String)} once, then {@link #setSequenceA(String)} repeatedly.
-     * <p/>
-     * Because junkFilter is a user-defined function, and we test for junk a LOT, it's important to minimize the number of calls. The first trick is to
-     * build b2j ignoring the possibility of junk. I.e., we don't call isJunk at all yet. Throwing out the junk later is much cheaper than building b2j
-     * "right" from the start.
+     * </p>
+     * <p>
+     * Because junkFilter is a user-defined function, and we test for junk a LOT, it's important to minimize the number of calls. The first trick is to build
+     * b2j ignoring the possibility of junk. I.e., we don't call isJunk at all yet. Throwing out the junk later is much cheaper than building b2j "right" from
+     * the start.
+     * </p>
      */
 
     private void chainB() {
@@ -256,28 +287,47 @@ public class SequenceMatcher {
 
     /**
      * Find the longest matching block in <code>a[alo:ahi]</code> and <code>b[blo:bhi]</code>.
-     * <p/>
+     * <p>
      * By default, it will find the longest match in the entirety of a and b.
-     * <p/>
+     * </p>
+     * <p>
      * If <code>junkFilter</code> is not defined:
-     * <p/>
-     * Return <code>(i,j,k)</code> such that <code>a[i:i+k]</code> is equal to <code>b[j:j+k]</code>, where <code>alo <= i <= i+k <= ahi blo <= j <= j+k <= bhi</code> and for all <code>(i',j',k')</code> meeting those
-     * conditions, <code>k >= k' i <= i'</code> and if <code>i == i', j <= j'</code>.
-     * <p/>
-     * In other words, of all maximal matching blocks, return one that starts earliest in <code>a</code>, and of all those maximal matching blocks that start earliest in <code>a</code>,
-     * return the one that starts earliest in <code>b</code>.
-     * <p/>
-     * If <code>junkFilter</code> is defined, first the longest matching block is determined as above, but with the additional restriction that no junk element appears in the
-     * block. Then that block is extended as far as possible by matching (only) junk elements on both sides. So the resulting block never matches on junk except
-     * as identical junk happens to be adjacent to an "interesting" match.
-     * <p/>
-     * Here's the same example as before, but considering blanks to be junk. That prevents <code>" abcd"</code> from matching the <code>" abcd"</code> at the tail end of the second
-     * sequence directly. Instead, only the <code>"abcd"</code> can match, and matches the leftmost <code>"abcd"</code> in the second sequence.
-     * <p/>
-     * CAUTION: stripping common prefix or suffix would be incorrect. E.g., ab acab Longest matching block is "ab", but if common prefix is stripped, it's
-     * "a" (tied with "b"). UNIX(tm) diff does so strip, so ends up claiming that ab is changed to acab by inserting "ca" in the middle. That's minimal but
+     * </p>
+     * <p>
+     * Return <code>(i,j,k)</code> such that <code>a[i:i+k]</code> is equal to <code>b[j:j+k]</code>, where
+     * <code>alo &lt;= i &lt;= i+k &lt;= ahi blo &lt;= j &lt;= j+k &lt;= bhi</code> and for all <code>(i',j',k')</code> meeting those conditions,
+     * <code>k &gt;= k' i &lt;= i'</code> and if <code>i == i', j &lt;= j'</code>.
+     * </p>
+     * <p>
+     * In other words, of all maximal matching blocks, return one that starts earliest in <code>a</code>, and of all those maximal matching blocks that start
+     * earliest in <code>a</code>, return the one that starts earliest in <code>b</code>.
+     * </p>
+     * <p>
+     * If <code>junkFilter</code> is defined, first the longest matching block is determined as above, but with the additional restriction that no junk element
+     * appears in the block. Then that block is extended as far as possible by matching (only) junk elements on both sides. So the resulting block never matches
+     * on junk except as identical junk happens to be adjacent to an "interesting" match.
+     * </p>
+     * <p>
+     * Here's the same example as before, but considering blanks to be junk. That prevents <code>" abcd"</code> from matching the <code>" abcd"</code> at the
+     * tail end of the second sequence directly. Instead, only the <code>"abcd"</code> can match, and matches the leftmost <code>"abcd"</code> in the second
+     * sequence.
+     * </p>
+     * <p>
+     * CAUTION: stripping common prefix or suffix would be incorrect. E.g., ab acab Longest matching block is "ab", but if common prefix is stripped, it's "a"
+     * (tied with "b"). UNIX(tm) diff does so strip, so ends up claiming that ab is changed to acab by inserting "ca" in the middle. That's minimal but
      * unintuitive: "it's obvious" that someone inserted "ac" at the front. WinDiff ends up at the same place as diff, but by pairing up the unique 'b's and
      * then matching the first two 'a's.
+     * </p>
+     *
+     * @param alo
+     *            the start index in sequence a
+     * @param ahi
+     *            the end index in sequence a
+     * @param blo
+     *            the start index in sequence b
+     * @param bhi
+     *            the end index in sequence b
+     * @return a Match representing the longest match
      */
     public Match findLongestMatch(int alo, int ahi, int blo, int bhi) {
 
@@ -341,13 +391,20 @@ public class SequenceMatcher {
 
     /**
      * Return list of triples describing matching subsequences.
-     * <p/>
-     * Each triple is of the form <code>(i, j, n)</code>, and means that <code>a[i:i+n] == b[j:j+n]</code>. The triples are monotonically increasing in i and in j.
-     * <p/>
-     * New in Python 2.5, it's also guaranteed that if <code>(i, j, n)</code> and <code>(i', j', n')</code> are adjacent triples in the list, and the second is not the last triple in the list, then <code>i+n !=
+     * <p>
+     * Each triple is of the form <code>(i, j, n)</code>, and means that <code>a[i:i+n] == b[j:j+n]</code>. The triples are monotonically increasing in i and in
+     * j.
+     * </p>
+     * <p>
+     * New in Python 2.5, it's also guaranteed that if <code>(i, j, n)</code> and <code>(i', j', n')</code> are adjacent triples in the list, and the second is
+     * not the last triple in the list, then <code>i+n !=
      * i' or j+n != j'</code>. IOW, adjacent triples never describe adjacent equal blocks.
-     * <p/>
+     * </p>
+     * <p>
      * The last triple is a dummy, <code>(len(a), len(b), 0)</code>, and is the only triple with <code>n==0</code>.
+     * </p>
+     *
+     * @return a list of matching blocks
      */
     public List<Match> getMatchingBlocks() {
         if (matchingBlocks != null) {
@@ -375,8 +432,8 @@ public class SequenceMatcher {
             int blo = x[2];
             int bhi = x[3];
             Match match = findLongestMatch(alo, ahi, blo, bhi);
-            int i = match.a;
-            int j = match.b;
+            int i = match.aOffset;
+            int j = match.bOffset;
             int k = match.size;
             if (k > 0) {
                 matchingBlocks.add(match);
@@ -394,7 +451,7 @@ public class SequenceMatcher {
         // It's possible that we have adjacent equal blocks in the
         // matching_blocks list now. Starting with 2.5, this code was added
         // to collapse them.
-        matchingBlocks.sort(Comparator.comparingInt((Match m) -> m.a).thenComparingInt(m -> m.b));
+        matchingBlocks.sort(Comparator.comparingInt((Match m) -> m.aOffset).thenComparingInt(m -> m.bOffset));
         this.matchingBlocks = getNonAdjacentMatches(matchingBlocks, la, lb);
         return this.matchingBlocks;
     }
@@ -403,8 +460,8 @@ public class SequenceMatcher {
         final List<Match> nonAdjacent = new ArrayList<>();
         int i1 = 0, j1 = 0, k1 = 0;
         for (Match match : matchingBlocks) {
-            int i2 = match.a;
-            int j2 = match.b;
+            int i2 = match.aOffset;
+            int j2 = match.bOffset;
             int k2 = match.size;
             if (i1 + k1 == i2 && j1 + k1 == j2) {
                 k1 += k2;
@@ -426,11 +483,13 @@ public class SequenceMatcher {
 
     /**
      * Return list of 5-tuples describing how to turn <code>a</code> into <code>b</code>.
-     * <p/>
-     * Each tuple is of the form <code>(tag, i1, i2, j1, j2)</code>. The first tuple has <code>i1 == j1 == 0</code>, and remaining tuples have <code>i1 == the i2</code> from the tuple preceding it,
-     * and likewise for <code>j1 ==</code> the previous <code>j2</code>.
-     * <p/>
+     * <p>
+     * Each tuple is of the form <code>(tag, i1, i2, j1, j2)</code>. The first tuple has <code>i1 == j1 == 0</code>, and remaining tuples have
+     * <code>i1 == the i2</code> from the tuple preceding it, and likewise for <code>j1 ==</code> the previous <code>j2</code>.
+     * </p>
+     * <p>
      * The tags are strings, with these meanings:
+     * </p>
      * <dl>
      * <dt>replace</dt>
      * <dd><code>a[i1:i2]</code> should be replaced by <code>b[j1:j2]</code></dd>
@@ -441,6 +500,8 @@ public class SequenceMatcher {
      * <dt>equal</dt>
      * <dd><code>a[i1:i2] == b[j1:j2]</code></dd>
      * </dl>
+     *
+     * @return a list of opcodes
      */
     public List<Opcode> getOpcodes() {
         if (opcodes != null) {
@@ -450,8 +511,8 @@ public class SequenceMatcher {
         int j = 0;
         List<Opcode> opcodes = new ArrayList<>();
         for (Match match : getMatchingBlocks()) {
-            int ai = match.a;
-            int bj = match.b;
+            int ai = match.aOffset;
+            int bj = match.bOffset;
             int size = match.size;
             OpcodeTag tag = OpcodeTag.EMPTY;
             if (i < ai && j < bj) {
@@ -476,12 +537,16 @@ public class SequenceMatcher {
 
     /**
      * Return a measure of the sequences' similarity (float in <code>[0,1]</code>).
-     * <p/>
-     * Where <code>T</code> is the total number of elements in both sequences, and <code>M</code> is the number of matches, this is <code>2.0*M / T</code>. Note that this is 1 if the sequences are
-     * identical, and 0 if they have nothing in common.
-     * <p/>
-     * <code>ratio()</code> is expensive to compute if you haven't already computed {@link #getMatchingBlocks()} or {@link #getOpcodes()}, in which case you may want to try
-     * {@link #quickRatio()} or {@link #realQuickRatio()} first to get an upper bound.
+     * <p>
+     * Where <code>T</code> is the total number of elements in both sequences, and <code>M</code> is the number of matches, this is <code>2.0*M / T</code>. Note
+     * that this is 1 if the sequences are identical, and 0 if they have nothing in common.
+     * </p>
+     * <p>
+     * <code>ratio()</code> is expensive to compute if you haven't already computed {@link #getMatchingBlocks()} or {@link #getOpcodes()}, in which case you may
+     * want to try {@link #quickRatio()} or {@link #realQuickRatio()} first to get an upper bound.
+     * </p>
+     *
+     * @return a measure of the sequences' similarity, a float in <code>[0,1]</code>
      */
     public double ratio() {
         int matches = getMatchingBlocks().stream().mapToInt(m -> m.size).sum();
@@ -490,8 +555,11 @@ public class SequenceMatcher {
 
     /**
      * Return an upper bound on {@link #ratio()} relatively quickly.
-     * <p/>
+     * <p>
      * This isn't defined beyond that it is an upper bound on {@link #ratio()}, and is faster to compute.
+     * </p>
+     *
+     * @return an upper bound on measure of the sequences' similarity, a float in <code>[0,1]</code>
      */
     public double quickRatio() {
         if (fullBCount == null) {
@@ -518,8 +586,11 @@ public class SequenceMatcher {
 
     /**
      * Return an upper bound on {@link #ratio()} very quickly.
-     * <p/>
+     * <p>
      * This isn't defined beyond that it is an upper bound on {@link #ratio()}, and is faster to compute than either {@link #ratio()} or {@link #quickRatio()}.
+     * </p>
+     *
+     * @return an upper bound on measure of the sequences' similarity, a float in <code>[0,1]</code>
      */
     public double realQuickRatio() {
         int la = a.length();
@@ -529,7 +600,7 @@ public class SequenceMatcher {
 
     /**
      * Get the set of junk characters in sequence b.
-     * 
+     *
      * @return the set of characters in b that are considered junk
      */
     public Set<Character> getBJunk() {
@@ -542,26 +613,39 @@ public class SequenceMatcher {
         }
         return 2.0 * matches / length;
     }
-    
+
     /**
      * Get a reusable int array from the pool or create a new one.
+     *
+     * @param alo
+     *            start of a sequence
+     * @param ahi
+     *            end of a sequence
+     * @param blo
+     *            start of b sequence
+     * @param bhi
+     *            end of b sequence
+     * @return an array containing these offsets.
      */
-    private int[] getOrCreateArray(int a, int b, int c, int d) {
+    private int[] getOrCreateArray(int alo, int ahi, int blo, int bhi) {
         int[] array;
         if (!availableArrays.isEmpty()) {
             array = availableArrays.remove(availableArrays.size() - 1);
         } else {
             array = new int[4];
         }
-        array[0] = a;
-        array[1] = b;
-        array[2] = c;
-        array[3] = d;
+        array[0] = alo;
+        array[1] = ahi;
+        array[2] = blo;
+        array[3] = bhi;
         return array;
     }
-    
+
     /**
      * Return an int array to the pool for reuse.
+     *
+     * @param array
+     *            the array to return to the pool.
      */
     private void recycleArray(int[] array) {
         if (availableArrays.size() < 10) { // Limit pool size to avoid memory leaks
@@ -571,14 +655,13 @@ public class SequenceMatcher {
 
     /**
      * Use SequenceMatcher to return list of the best "good enough" matches.
-     * <p/>
      *
      * @param word
      *            is a sequence for which close matches are desired (typically a string).
      * @param possibilities
      *            is a list of sequences against which to match word (typically a list of strings).
      * @param n
-     *            (default 3) is the maximum number of close matches to return. n must be > 0.
+     *            (default 3) is the maximum number of close matches to return. n must be &gt; 0.
      * @param cutoff
      *            (default 0.6) is a float in <code>[0, 1]</code>. Possibilities that don't score at least that similar to word are ignored.
      *
@@ -610,38 +693,40 @@ public class SequenceMatcher {
     /** Interface for junk filter operations */
     public interface JunkFilter {
         /**
-         * @param ch the character to evaluate.
+         * @param ch
+         *            the character to evaluate.
          * @return true of the input character should be considered junk.
          */
         boolean isJunk(char ch);
     }
 
     public static final class Match {
-        public final int a;
-        public final int b;
+        public final int aOffset;
+        public final int bOffset;
         public final int size;
 
-        public Match(int a, int b, int size) {
-            this.a = a;
-            this.b = b;
+        public Match(int aOffset, int bOffset, int size) {
+            this.aOffset = aOffset;
+            this.bOffset = bOffset;
             this.size = size;
         }
 
         @Override
         public String toString() {
-            return "Match{" + "a=" + a + ", b=" + b + ", size=" + size + '}';
+            return "Match{" + "a=" + aOffset + ", b=" + bOffset + ", size=" + size + '}';
         }
 
         @Override
         public boolean equals(Object o) {
-            if (o == null || getClass() != o.getClass()) return false;
+            if (o == null || getClass() != o.getClass())
+                return false;
             Match match = (Match) o;
-            return a == match.a && b == match.b && size == match.size;
+            return aOffset == match.aOffset && bOffset == match.bOffset && size == match.size;
         }
 
         @Override
         public int hashCode() {
-            return Objects.hash(a, b, size);
+            return Objects.hash(aOffset, bOffset, size);
         }
     }
 
@@ -662,7 +747,8 @@ public class SequenceMatcher {
 
         @Override
         public boolean equals(Object o) {
-            if (o == null || getClass() != o.getClass()) return false;
+            if (o == null || getClass() != o.getClass())
+                return false;
             Opcode opcode = (Opcode) o;
             return i1 == opcode.i1 && i2 == opcode.i2 && j1 == opcode.j1 && j2 == opcode.j2 && tag == opcode.tag;
         }
@@ -676,6 +762,7 @@ public class SequenceMatcher {
     public enum OpcodeTag {
         EMPTY, REPLACE, DELETE, INSERT, EQUAL
     }
+
     public static class MatchResult {
         public final double score;
         public final String word;

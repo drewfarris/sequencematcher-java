@@ -1,22 +1,22 @@
 package drew.util.difflib;
 
-import org.junit.jupiter.api.Test;
-
 import java.util.Random;
+
+import org.junit.jupiter.api.Test;
 
 /**
  * Performance tests for SequenceMatcher optimizations.
  */
 public class SequenceMatcherPerformanceTest {
-    
+
     @Test
     public void testPerformanceWithLargeStrings() {
         // Generate large test strings
         String a = generateRandomString(1000);
         String b = generateRandomString(1000);
-        
+
         SequenceMatcher sm = new SequenceMatcher(null, a, b, true);
-        
+
         // Warm up
         for (int i = 0; i < 10; i++) {
             sm.ratio();
@@ -24,7 +24,7 @@ public class SequenceMatcherPerformanceTest {
             sm.getMatchingBlocks();
             sm.getOpcodes();
         }
-        
+
         // Time the operations
         long startTime = System.nanoTime();
         for (int i = 0; i < 100; i++) {
@@ -34,15 +34,14 @@ public class SequenceMatcherPerformanceTest {
             sm.getOpcodes();
         }
         long endTime = System.nanoTime();
-        
-        System.out.println("Time for 100 operations on 1000-char strings: " + 
-                          (endTime - startTime) / 1_000_000 + "ms");
+
+        System.out.println("Time for 100 operations on 1000-char strings: " + (endTime - startTime) / 1_000_000 + "ms");
     }
-    
+
     @Test
     public void testPerformanceWithManySequenceChanges() {
         SequenceMatcher sm = new SequenceMatcher(null, "", "", true);
-        
+
         // Test many sequence changes to verify object reuse
         long startTime = System.nanoTime();
         for (int i = 0; i < 1000; i++) {
@@ -52,11 +51,10 @@ public class SequenceMatcherPerformanceTest {
             sm.ratio(); // Force computation
         }
         long endTime = System.nanoTime();
-        
-        System.out.println("Time for 1000 sequence changes with 100-char strings: " + 
-                          (endTime - startTime) / 1_000_000 + "ms");
+
+        System.out.println("Time for 1000 sequence changes with 100-char strings: " + (endTime - startTime) / 1_000_000 + "ms");
     }
-    
+
     private String generateRandomString(int length) {
         Random random = new Random(42); // Fixed seed for reproducible tests
         StringBuilder sb = new StringBuilder(length);
