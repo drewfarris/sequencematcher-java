@@ -7,6 +7,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 
 /**
@@ -630,6 +631,18 @@ public class SequenceMatcher {
         public String toString() {
             return "Match{" + "a=" + a + ", b=" + b + ", size=" + size + '}';
         }
+
+        @Override
+        public boolean equals(Object o) {
+            if (o == null || getClass() != o.getClass()) return false;
+            Match match = (Match) o;
+            return a == match.a && b == match.b && size == match.size;
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(a, b, size);
+        }
     }
 
     public static final class Opcode {
@@ -645,6 +658,18 @@ public class SequenceMatcher {
             this.i2 = i2;
             this.j1 = j1;
             this.j2 = j2;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (o == null || getClass() != o.getClass()) return false;
+            Opcode opcode = (Opcode) o;
+            return i1 == opcode.i1 && i2 == opcode.i2 && j1 == opcode.j1 && j2 == opcode.j2 && tag == opcode.tag;
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(tag, i1, i2, j1, j2);
         }
     }
 

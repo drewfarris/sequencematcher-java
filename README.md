@@ -51,7 +51,7 @@ import drew.util.difflib.SequenceMatcher;
 SequenceMatcher sm = new SequenceMatcher("hello world", "hello java");
 
 // Get similarity ratio (0.0 to 1.0)
-double similarity = sm.ratio(); // 0.615
+double similarity = sm.ratio(); // 0.5714..
 
 // Get matching blocks
 List<SequenceMatcher.Match> blocks = sm.getMatchingBlocks();

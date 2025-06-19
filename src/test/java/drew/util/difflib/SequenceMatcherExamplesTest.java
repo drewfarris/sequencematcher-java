@@ -15,8 +15,8 @@ public class SequenceMatcherExamplesTest {
         SequenceMatcher sm = new SequenceMatcher("hello world", "hello java");
 
         // Get similarity ratio (0.0 to 1.0)
-        double similarity = sm.ratio(); // 0.615
-        assertEquals(0.615, similarity, 0.0);
+        double similarity = sm.ratio(); // 0.5714..
+        assertEquals(0.5714, similarity, 0.0001);
 
         // Get matching blocks
         List<SequenceMatcher.Match> blocks = sm.getMatchingBlocks();
